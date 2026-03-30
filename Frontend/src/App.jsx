@@ -37,11 +37,12 @@ export default function App() {
       const form = new FormData();
       form.append("file", file);
 
-      const res = await fetch("http://127.0.0.1:8000/predict", {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const res = await fetch(`${API_BASE_URL}/predict`, {
         method: "POST",
         body: form,
       });
-      
+
       if (!res.ok) throw new Error("Failed to connect to the prediction server.");
 
       const data = await res.json();
@@ -66,9 +67,9 @@ export default function App() {
 
       {/* Main Card */}
       <div style={styles.card}>
-        
+
         {/* Upload Area */}
-        <div style={{...styles.uploadArea, ...(preview ? styles.uploadAreaHasContent : {})}}>
+        <div style={{ ...styles.uploadArea, ...(preview ? styles.uploadAreaHasContent : {}) }}>
           {!preview ? (
             <>
               <UploadCloud size={48} color="var(--text-muted)" style={{ marginBottom: 12 }} />
@@ -79,11 +80,11 @@ export default function App() {
             <img src={preview} alt="preview" style={styles.previewImage} />
           )}
           {/* Overlaid invisible input */}
-          <input 
-            type="file" 
-            accept="image/*" 
-            onChange={onPick} 
-            style={styles.fileInput} 
+          <input
+            type="file"
+            accept="image/*"
+            onChange={onPick}
+            style={styles.fileInput}
           />
         </div>
 
@@ -96,9 +97,9 @@ export default function App() {
         )}
 
         {/* Action Button */}
-        <button 
-          onClick={predict} 
-          disabled={!file || loading} 
+        <button
+          onClick={predict}
+          disabled={!file || loading}
           style={{
             ...styles.button,
             opacity: (!file || loading) ? 0.6 : 1,
@@ -119,38 +120,49 @@ export default function App() {
         {result && (
           <div style={styles.resultContainer} className="animate-fade-in">
             <h3 style={styles.resultTitle}>Analysis Complete</h3>
-            
-            <div style={styles.primaryResult}>
-              <CheckCircle2 size={24} color="var(--success)" style={{ marginRight: 12 }} />
-              <div>
-                <p style={styles.resultLabel}>Primary Diagnosis</p>
-                <div style={styles.predictionHighlight}>
-                  <span style={styles.diseaseName}>{DISEASE_NAMES[result.predicted_class] || result.predicted_class}</span>
-                  <span style={styles.confidenceBadge}>
-                    {(result.confidence * 100).toFixed(1)}% Match
-                  </span>
-                </div>
-              </div>
-            </div>
 
-            <h4 style={styles.top3Title}>Alternative Considerations</h4>
-            <ul style={styles.top3List}>
-              {result.top3.map((t) => (
-                <li key={t.class} style={styles.top3Item}>
-                  <span style={{...styles.top3Class, textTransform: 'none'}}>{DISEASE_NAMES[t.class] || t.class}</span>
-                  <div style={styles.progressTrack}>
-                    <div 
-                      style={{
-                        ...styles.progressBar, 
-                        width: `${t.prob * 100}%`,
-                        backgroundColor: t.class === result.predicted_class ? 'var(--primary)' : 'var(--text-muted)'
-                      }} 
-                    />
+            {(result.status === "uncertain" || result.rejected) ? (
+              <div style={styles.warningBox}>
+                <AlertCircle size={20} color="#ca8a04" style={{ marginRight: 12, flexShrink: 0, marginTop: 2 }} />
+                <p style={{ margin: 0, fontSize: "0.95rem", color: "#854d0e", lineHeight: 1.5 }}>
+                  <strong>Note:</strong> {result.rejection_reason || result.message}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div style={styles.primaryResult}>
+                  <CheckCircle2 size={24} color="var(--success)" style={{ marginRight: 12 }} />
+                  <div>
+                    <p style={styles.resultLabel}>AI Prediction</p>
+                    <div style={styles.predictionHighlight}>
+                      <span style={styles.diseaseName}>{DISEASE_NAMES[result.predicted_class] || result.predicted_class}</span>
+                      <span style={styles.confidenceBadge}>
+                        {(result.confidence * 100).toFixed(1)}% Match
+                      </span>
+                    </div>
                   </div>
-                  <span style={styles.top3Prob}>{(t.prob * 100).toFixed(1)}%</span>
-                </li>
-              ))}
-            </ul>
+                </div>
+
+                <h4 style={styles.top3Title}>Alternative Considerations</h4>
+                <ul style={styles.top3List}>
+                  {result.top3.map((t) => (
+                    <li key={t.class} style={styles.top3Item}>
+                      <span style={{ ...styles.top3Class, textTransform: 'none' }}>{DISEASE_NAMES[t.class] || t.class}</span>
+                      <div style={styles.progressTrack}>
+                        <div
+                          style={{
+                            ...styles.progressBar,
+                            width: `${t.prob * 100}%`,
+                            backgroundColor: t.class === result.predicted_class ? 'var(--primary)' : 'var(--text-muted)'
+                          }}
+                        />
+                      </div>
+                      <span style={styles.top3Prob}>{(t.prob * 100).toFixed(1)}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -258,6 +270,15 @@ const styles = {
     marginBottom: 24,
     fontSize: "0.9rem",
     border: "1px solid #fecaca"
+  },
+  warningBox: {
+    display: "flex",
+    alignItems: "flex-start",
+    backgroundColor: "#fefce8",
+    padding: "16px",
+    borderRadius: 8,
+    marginBottom: 24,
+    border: "1px solid #fde047"
   },
   resultContainer: {
     marginTop: 32,
